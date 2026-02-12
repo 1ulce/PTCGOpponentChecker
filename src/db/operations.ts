@@ -28,9 +28,9 @@ interface CreateEventInput {
 /**
  * 新規イベントを作成
  */
-export function createEvent(input: CreateEventInput): Event {
+export async function createEvent(input: CreateEventInput): Promise<Event> {
   const now = new Date().toISOString();
-  const result = db()
+  const result = await db()
     .insert(events)
     .values({
       eventId: input.eventId,
@@ -41,43 +41,41 @@ export function createEvent(input: CreateEventInput): Event {
       createdAt: now,
       updatedAt: now,
     })
-    .returning()
-    .get();
+    .returning();
 
-  return result;
+  return result[0];
 }
 
 /**
  * event_idでイベントを検索
  */
-export function findEventByEventId(eventId: string): Event | null {
-  const result = db()
+export async function findEventByEventId(eventId: string): Promise<Event | null> {
+  const result = await db()
     .select()
     .from(events)
     .where(eq(events.eventId, eventId))
-    .get();
+    .limit(1);
 
-  return result ?? null;
+  return result[0] ?? null;
 }
 
 /**
  * 全イベントを取得
  */
-export function getAllEvents(): Event[] {
-  return db().select().from(events).all();
+export async function getAllEvents(): Promise<Event[]> {
+  return db().select().from(events);
 }
 
 /**
  * 複数のevent_idから、DBに存在するものをリストアップ
  */
-export function getEventIdsByEventIds(eventIds: string[]): string[] {
+export async function getEventIdsByEventIds(eventIds: string[]): Promise<string[]> {
   if (eventIds.length === 0) return [];
 
-  const results = db()
+  const results = await db()
     .select({ eventId: events.eventId })
     .from(events)
-    .where(inArray(events.eventId, eventIds))
-    .all();
+    .where(inArray(events.eventId, eventIds));
 
   return results.map((r) => r.eventId);
 }
@@ -101,9 +99,9 @@ interface FindOrCreatePlayerResult {
 /**
  * 複合キー（4項目）でプレイヤーを検索し、存在しなければ作成
  */
-export function findOrCreatePlayer(input: FindOrCreatePlayerInput): FindOrCreatePlayerResult {
+export async function findOrCreatePlayer(input: FindOrCreatePlayerInput): Promise<FindOrCreatePlayerResult> {
   // 複合キーで検索
-  const existing = db()
+  const existing = await db()
     .select()
     .from(players)
     .where(
@@ -114,15 +112,15 @@ export function findOrCreatePlayer(input: FindOrCreatePlayerInput): FindOrCreate
         eq(players.country, input.country)
       )
     )
-    .get();
+    .limit(1);
 
-  if (existing) {
-    return { player: existing, created: false };
+  if (existing[0]) {
+    return { player: existing[0], created: false };
   }
 
   // 新規作成
   const now = new Date().toISOString();
-  const newPlayer = db()
+  const newPlayer = await db()
     .insert(players)
     .values({
       playerIdMasked: input.playerIdMasked,
@@ -132,23 +130,22 @@ export function findOrCreatePlayer(input: FindOrCreatePlayerInput): FindOrCreate
       createdAt: now,
       updatedAt: now,
     })
-    .returning()
-    .get();
+    .returning();
 
-  return { player: newPlayer, created: true };
+  return { player: newPlayer[0], created: true };
 }
 
 /**
  * プレイヤーIDで検索
  */
-export function findPlayerById(id: number): Player | null {
-  const result = db()
+export async function findPlayerById(id: number): Promise<Player | null> {
+  const result = await db()
     .select()
     .from(players)
     .where(eq(players.id, id))
-    .get();
+    .limit(1);
 
-  return result ?? null;
+  return result[0] ?? null;
 }
 
 // ============================================
@@ -166,11 +163,11 @@ interface CreateParticipationInput {
 /**
  * 参加記録を作成（重複時はnullを返す）
  */
-export function createParticipation(input: CreateParticipationInput): Participation | null {
+export async function createParticipation(input: CreateParticipationInput): Promise<Participation | null> {
   const now = new Date().toISOString();
 
   try {
-    const result = db()
+    const result = await db()
       .insert(participations)
       .values({
         playerId: input.playerId,
@@ -181,10 +178,9 @@ export function createParticipation(input: CreateParticipationInput): Participat
         createdAt: now,
         updatedAt: now,
       })
-      .returning()
-      .get();
+      .returning();
 
-    return result;
+    return result[0];
   } catch (error) {
     // UNIQUE制約違反の場合はnullを返す
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
@@ -197,21 +193,19 @@ export function createParticipation(input: CreateParticipationInput): Participat
 /**
  * プレイヤーIDで参加記録を取得
  */
-export function getParticipationsByPlayerId(playerId: number): Participation[] {
+export async function getParticipationsByPlayerId(playerId: number): Promise<Participation[]> {
   return db()
     .select()
     .from(participations)
-    .where(eq(participations.playerId, playerId))
-    .all();
+    .where(eq(participations.playerId, playerId));
 }
 
 /**
  * イベントIDで参加記録を取得
  */
-export function getParticipationsByEventId(eventId: number): Participation[] {
+export async function getParticipationsByEventId(eventId: number): Promise<Participation[]> {
   return db()
     .select()
     .from(participations)
-    .where(eq(participations.eventId, eventId))
-    .all();
+    .where(eq(participations.eventId, eventId));
 }

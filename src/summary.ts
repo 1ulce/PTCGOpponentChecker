@@ -3,10 +3,7 @@
  * 実行結果サマリーの集計・フォーマット・出力
  */
 
-import { Logger } from './utils/logger.js';
 import type { CrawlSummary } from './crawler/types.js';
-
-const logger = new Logger('Summary');
 
 /**
  * ミリ秒を人間可読なフォーマットに変換

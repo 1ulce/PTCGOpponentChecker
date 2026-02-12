@@ -52,17 +52,19 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
 // Only start server when this file is run directly (not imported for testing)
 if (process.argv[1]?.endsWith('api/index.ts') || process.argv[1]?.endsWith('api/index.js')) {
-  // Initialize database connection
-  console.log('Initializing database...');
-  createDatabase();
-  console.log('Database initialized');
+  (async () => {
+    // Initialize database connection
+    console.log('Initializing database...');
+    await createDatabase();
+    console.log('Database initialized');
 
-  console.log(`Starting API server on port ${PORT}...`);
-  serve({
-    fetch: app.fetch,
-    port: PORT,
-  });
-  console.log(`API server running at http://localhost:${PORT}`);
+    console.log(`Starting API server on port ${PORT}...`);
+    serve({
+      fetch: app.fetch,
+      port: PORT,
+    });
+    console.log(`API server running at http://localhost:${PORT}`);
+  })();
 }
 
 export { serve, PORT };

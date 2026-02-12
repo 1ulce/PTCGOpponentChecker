@@ -55,13 +55,12 @@ function db() {
 }
 
 /** プレイヤーの参加回数を取得 */
-function getParticipationCount(playerId: number): number {
-  const result = db()
+async function getParticipationCount(playerId: number): Promise<number> {
+  const result = await db()
     .select({ count: count() })
     .from(participations)
-    .where(eq(participations.playerId, playerId))
-    .get();
-  return result?.count ?? 0;
+    .where(eq(participations.playerId, playerId));
+  return result[0]?.count ?? 0;
 }
 
 /**
@@ -119,7 +118,7 @@ const playerSelectFields = {
 /**
  * 名前でプレイヤーを検索（参加回数付き）
  */
-export function searchPlayers(options: SearchPlayersOptions): PlayerWithCount[] {
+export async function searchPlayers(options: SearchPlayersOptions): Promise<PlayerWithCount[]> {
   const { name, country, division, limit = 100 } = options;
   const effectiveLimit = Math.min(limit, 500);
   const conditions = buildNameSearchConditions(name, country);
@@ -127,12 +126,12 @@ export function searchPlayers(options: SearchPlayersOptions): PlayerWithCount[] 
   // Division指定がある場合のフィルタリング
   let playerIdsWithDivision: number[] | null = null;
   if (division) {
-    playerIdsWithDivision = db()
+    const divisionResults = await db()
       .selectDistinct({ playerId: participations.playerId })
       .from(participations)
-      .where(eq(participations.division, division))
-      .all()
-      .map((r) => r.playerId);
+      .where(eq(participations.division, division));
+
+    playerIdsWithDivision = divisionResults.map((r) => r.playerId);
 
     if (playerIdsWithDivision.length === 0) {
       return [];
@@ -140,39 +139,47 @@ export function searchPlayers(options: SearchPlayersOptions): PlayerWithCount[] 
   }
 
   // プレイヤーを取得
-  const results = db()
+  const results = await db()
     .select(playerSelectFields)
     .from(players)
-    .where(conditions)
-    .all();
+    .where(conditions);
 
   // Divisionフィルターを適用して、limit適用、参加回数を付加
   const filtered = playerIdsWithDivision
     ? results.filter((p) => playerIdsWithDivision!.includes(p.id))
     : results;
 
-  return filtered.slice(0, effectiveLimit).map((player) => ({
-    ...player,
-    participationCount: getParticipationCount(player.id),
-  }));
+  const limited = filtered.slice(0, effectiveLimit);
+
+  // 参加回数を並列で取得
+  const playersWithCount = await Promise.all(
+    limited.map(async (player) => ({
+      ...player,
+      participationCount: await getParticipationCount(player.id),
+    }))
+  );
+
+  return playersWithCount;
 }
 
 /**
  * プレイヤーの参加記録を取得（開催日降順）
  */
-export function getParticipationsWithEvents(
+export async function getParticipationsWithEvents(
   playerId: number,
   division?: string
-): ParticipationDetail[] {
+): Promise<ParticipationDetail[]> {
   // プレイヤー情報を取得
-  const player = db()
+  const playerResult = await db()
     .select({
       playerIdMasked: players.playerIdMasked,
       country: players.country,
     })
     .from(players)
     .where(eq(players.id, playerId))
-    .get();
+    .limit(1);
+
+  const player = playerResult[0];
 
   if (!player) {
     return [];
@@ -184,7 +191,7 @@ export function getParticipationsWithEvents(
     ? and(baseCondition, eq(participations.division, division))
     : baseCondition;
 
-  const results = db()
+  const results = await db()
     .select({
       participationId: participations.id,
       eventName: events.name,
@@ -197,8 +204,7 @@ export function getParticipationsWithEvents(
     .from(participations)
     .innerJoin(events, eq(participations.eventId, events.id))
     .where(conditions)
-    .orderBy(desc(events.dateStart))
-    .all();
+    .orderBy(desc(events.dateStart));
 
   // プレイヤー情報を付加
   return results.map((r) => ({

@@ -1,53 +1,50 @@
-import Database from 'better-sqlite3';
-import { drizzle, BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import { existsSync, mkdirSync } from 'fs';
-import { dirname } from 'path';
+import { createClient, Client } from '@libsql/client';
+import { drizzle, LibSQLDatabase } from 'drizzle-orm/libsql';
+import 'dotenv/config';
 import * as schema from './schema.js';
 
-let sqliteDb: Database.Database | null = null;
-let drizzleDb: BetterSQLite3Database<typeof schema> | null = null;
+let libsqlClient: Client | null = null;
+let drizzleDb: LibSQLDatabase<typeof schema> | null = null;
 
 /**
  * データベース接続を作成し、スキーマを初期化する
- * @param dbPath DBファイルパス（デフォルト: ./data/ptcg.db）
+ * 環境変数 TURSO_DATABASE_URL と TURSO_AUTH_TOKEN を使用
+ * ローカル開発時は TURSO_DATABASE_URL に file:./data/ptcg.db を指定可能
  * @returns Drizzle DBインスタンス
  */
-export function createDatabase(dbPath: string = './data/ptcg.db'): BetterSQLite3Database<typeof schema> {
+export async function createDatabase(): Promise<LibSQLDatabase<typeof schema>> {
   // 既存の接続があれば返す
-  if (drizzleDb && sqliteDb) {
+  if (drizzleDb && libsqlClient) {
     return drizzleDb;
   }
 
-  // DBファイルのディレクトリを作成
-  const dir = dirname(dbPath);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
+  const url = process.env.TURSO_DATABASE_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN;
+
+  if (!url) {
+    throw new Error('TURSO_DATABASE_URL is required');
   }
 
-  // SQLite接続を作成
-  sqliteDb = new Database(dbPath);
+  // libSQL クライアントを作成
+  libsqlClient = createClient({
+    url,
+    authToken,
+  });
 
-  // WALモードを有効化（パフォーマンス向上）
-  sqliteDb.pragma('journal_mode = WAL');
+  // Drizzle インスタンスを作成
+  drizzleDb = drizzle(libsqlClient, { schema });
 
-  // 外部キー制約を有効化
-  sqliteDb.pragma('foreign_keys = ON');
-
-  // Drizzleインスタンスを作成
-  drizzleDb = drizzle(sqliteDb, { schema });
-
-  // スキーマを直接作成（マイグレーションファイルがない場合のフォールバック）
-  initializeSchema(sqliteDb);
+  // スキーマを初期化
+  await initializeSchema(libsqlClient);
 
   return drizzleDb;
 }
 
 /**
- * スキーマを直接SQLで初期化（drizzle-kitマイグレーションのフォールバック）
+ * スキーマを直接SQLで初期化
  */
-function initializeSchema(db: Database.Database): void {
-  db.exec(`
+async function initializeSchema(client: Client): Promise<void> {
+  await client.executeMultiple(`
     CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       event_id TEXT NOT NULL UNIQUE,
@@ -89,27 +86,10 @@ function initializeSchema(db: Database.Database): void {
 }
 
 /**
- * drizzle-kitによるマイグレーションを実行
- * @param migrationsFolder マイグレーションフォルダパス
- */
-export function runMigrations(migrationsFolder: string = './drizzle'): void {
-  if (!drizzleDb) {
-    throw new Error('Database not initialized. Call createDatabase() first.');
-  }
-
-  try {
-    migrate(drizzleDb, { migrationsFolder });
-  } catch (error) {
-    // マイグレーションフォルダがない場合は無視（initializeSchemaで対応済み）
-    console.warn('Migration skipped:', error instanceof Error ? error.message : error);
-  }
-}
-
-/**
  * データベース接続を取得
  * @returns Drizzle DBインスタンス（未初期化の場合はnull）
  */
-export function getDatabase(): BetterSQLite3Database<typeof schema> | null {
+export function getDatabase(): LibSQLDatabase<typeof schema> | null {
   return drizzleDb;
 }
 
@@ -117,9 +97,9 @@ export function getDatabase(): BetterSQLite3Database<typeof schema> | null {
  * データベース接続をクローズ
  */
 export function closeDatabase(): void {
-  if (sqliteDb) {
-    sqliteDb.close();
-    sqliteDb = null;
+  if (libsqlClient) {
+    libsqlClient.close();
+    libsqlClient = null;
     drizzleDb = null;
   }
 }

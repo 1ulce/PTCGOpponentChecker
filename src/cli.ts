@@ -5,12 +5,11 @@
 
 import { createDatabase, closeDatabase } from './db/index.js';
 import { createBrowser, closeBrowser } from './crawler/browser.js';
-import { crawlAllEvents, fetchEventsFromRk9, saveNewEvents } from './crawler/events.js';
+import { crawlAllEvents } from './crawler/events.js';
 import { crawlRosters } from './crawler/roster.js';
 import { getAllEvents, getEventIdsByEventIds } from './db/operations.js';
-import { sleepRandom } from './utils/sleep.js';
 import { Logger } from './utils/logger.js';
-import type { CrawlSummary, CrawlResult, RosterCrawlResult, ParsedEvent } from './crawler/types.js';
+import type { CrawlSummary, RosterCrawlResult, ParsedEvent } from './crawler/types.js';
 
 const logger = new Logger('CLI');
 
@@ -60,14 +59,13 @@ export function parseArgs(args: string[]): ParsedArgs {
  * クローラーの初期化
  * - DB接続を作成
  * - Playwrightブラウザを起動
- * @param dbPath SQLiteファイルのパス（デフォルト: ./data/ptcg.db）
  */
-export async function initializeCrawler(dbPath: string = './data/ptcg.db'): Promise<void> {
+export async function initializeCrawler(): Promise<void> {
   logger.info('Initializing crawler...');
 
   // DB接続を初期化
   logger.debug('Creating database connection...');
-  createDatabase(dbPath);
+  await createDatabase();
   logger.debug('Database connection established');
 
   // ブラウザを起動
@@ -126,13 +124,13 @@ export interface CrawlOptions {
  * @param parsedEvents パース済み大会情報
  * @returns 未登録の大会IDの配列
  */
-export function getNewEventIds(parsedEvents: ParsedEvent[]): string[] {
+export async function getNewEventIds(parsedEvents: ParsedEvent[]): Promise<string[]> {
   if (parsedEvents.length === 0) {
     return [];
   }
 
   const allEventIds = parsedEvents.map((e) => e.eventId);
-  const existingIds = new Set(getEventIdsByEventIds(allEventIds));
+  const existingIds = new Set(await getEventIdsByEventIds(allEventIds));
 
   return allEventIds.filter((id) => !existingIds.has(id));
 }
@@ -189,7 +187,7 @@ export async function runFullCrawl(options: CrawlOptions = {}): Promise<CrawlSum
 
   // 新規追加された大会のみrosterをクロール
   // crawlAllEventsは既存イベントをスキップするので、DBから新規イベントを取得
-  const allEvents = getAllEvents();
+  const allEvents = await getAllEvents();
   const newEventIds = allEvents
     .slice(-eventsResult.eventsAdded) // 最新のN件が新規追加されたイベント
     .map((e) => e.eventId);

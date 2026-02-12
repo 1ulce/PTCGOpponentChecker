@@ -5,11 +5,10 @@
 
 import type { Page } from 'playwright';
 import type { ParsedEvent, CrawlResult, CrawlerError } from './types.js';
-import { createCrawlerError, CrawlerErrorType, fromJsError } from './types.js';
-import { createBrowser, createPage, navigateTo, waitForSelector, closeBrowser } from './browser.js';
-import { createEvent, findEventByEventId, getEventIdsByEventIds } from '../db/operations.js';
+import { fromJsError } from './types.js';
+import { createBrowser, createPage, navigateTo, waitForSelector } from './browser.js';
+import { createEvent, getEventIdsByEventIds } from '../db/operations.js';
 import { retry, isRetryableError } from '../utils/retry.js';
-import { sleepRandom } from '../utils/sleep.js';
 import { Logger } from '../utils/logger.js';
 import { parseDateToISO } from '../utils/date.js';
 
@@ -28,10 +27,6 @@ const PAST_EVENTS_ROWS_SELECTOR = '#dtPastEvents tbody tr';
 
 /** 大会ID抽出用の正規表現 */
 const EVENT_ID_PATTERN = /\/tournament\/([A-Za-z0-9]+)/;
-
-/** ポライトクローリング用の待機時間（ミリ秒） */
-const CRAWL_DELAY_MIN = 1000;
-const CRAWL_DELAY_MAX = 3000;
 
 const logger = new Logger('EventsCrawler');
 
@@ -58,16 +53,16 @@ export function extractTcgEventId(href: string | null): string | null {
  * @returns パース済み大会情報の配列
  */
 export async function parseEventsFromPage(page: Page): Promise<ParsedEvent[]> {
-  const events = await page.$$eval(PAST_EVENTS_ROWS_SELECTOR, (rows) => {
+  const events = await page.$$eval(PAST_EVENTS_ROWS_SELECTOR, (rows: Element[]) => {
     return rows
       .map((row) => {
-        const cells = Array.from(row.querySelectorAll('td'));
+        const cells = Array.from(row.querySelectorAll('td')) as HTMLTableCellElement[];
         if (cells.length < 5) return null;
 
         // リンクセル（5番目）からTCGリンクを探す
         const linksCell = cells[4];
-        const links = linksCell ? Array.from(linksCell.querySelectorAll('a')) : [];
-        const tcgAnchor = links.find((a) => a.textContent?.trim() === 'TCG');
+        const links = linksCell ? Array.from(linksCell.querySelectorAll('a')) as HTMLAnchorElement[] : [];
+        const tcgAnchor = links.find((a: HTMLAnchorElement) => a.textContent?.trim() === 'TCG');
 
         if (!tcgAnchor) return null;
 
@@ -125,14 +120,14 @@ export async function fetchEventsFromRk9(): Promise<ParsedEvent[]> {
  * @param events パース済み大会情報
  * @returns 保存結果
  */
-export function saveNewEvents(events: ParsedEvent[]): CrawlResult {
+export async function saveNewEvents(events: ParsedEvent[]): Promise<CrawlResult> {
   const errors: CrawlerError[] = [];
   let eventsAdded = 0;
   let eventsSkipped = 0;
 
   // 一括でDBに存在するevent_idを取得（効率化）
   const eventIds = events.map((e) => e.eventId);
-  const existingIds = new Set(getEventIdsByEventIds(eventIds));
+  const existingIds = new Set(await getEventIdsByEventIds(eventIds));
 
   for (const event of events) {
     try {
@@ -141,7 +136,7 @@ export function saveNewEvents(events: ParsedEvent[]): CrawlResult {
         continue;
       }
 
-      createEvent({
+      await createEvent({
         eventId: event.eventId,
         name: event.name,
         date: event.date,
@@ -183,7 +178,7 @@ export async function crawlAllEvents(): Promise<CrawlResult> {
       }
     );
 
-    const result = saveNewEvents(events);
+    const result = await saveNewEvents(events);
     return result;
   } catch (error) {
     const crawlerError = fromJsError(error instanceof Error ? error : new Error(String(error)));

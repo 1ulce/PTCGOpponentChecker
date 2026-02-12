@@ -6,7 +6,7 @@
 import type { Page } from 'playwright';
 import type { ParsedParticipant, RosterCrawlResult, CrawlerError } from './types.js';
 import { createCrawlerError, CrawlerErrorType, fromJsError } from './types.js';
-import { createBrowser, createPage, navigateTo, waitForSelector, closeBrowser } from './browser.js';
+import { createBrowser, createPage, navigateTo, waitForSelector } from './browser.js';
 import { findEventByEventId, findOrCreatePlayer, createParticipation } from '../db/operations.js';
 import { retry, isRetryableError } from '../utils/retry.js';
 import { sleepRandom } from '../utils/sleep.js';
@@ -73,9 +73,9 @@ export function isValidParticipant(participant: ParsedParticipant): boolean {
  * @returns パース済み参加者情報の配列
  */
 export async function parseParticipantsFromPage(page: Page): Promise<ParsedParticipant[]> {
-  const participants = await page.$$eval(TABLE_ROWS_SELECTOR, (rows) => {
+  const participants = await page.$$eval(TABLE_ROWS_SELECTOR, (rows: Element[]) => {
     return rows.map((row) => {
-      const cells = Array.from(row.querySelectorAll('td'));
+      const cells = Array.from(row.querySelectorAll('td')) as HTMLTableCellElement[];
 
       // 基本フィールド（必須）
       const playerIdMasked = cells[0]?.textContent?.trim() || '';
@@ -168,7 +168,7 @@ export async function saveParticipants(
   let participationsAdded = 0;
 
   // イベントをDBから取得
-  const event = findEventByEventId(eventId);
+  const event = await findEventByEventId(eventId);
   if (!event) {
     errors.push(
       createCrawlerError(
@@ -193,7 +193,7 @@ export async function saveParticipants(
   for (const participant of validParticipants) {
     try {
       // プレイヤーを検索または作成（複合キーで同一人物判定）
-      const { player, created } = findOrCreatePlayer({
+      const { player, created } = await findOrCreatePlayer({
         playerIdMasked: participant.playerIdMasked,
         firstName: participant.firstName,
         lastName: participant.lastName,
@@ -207,7 +207,7 @@ export async function saveParticipants(
       }
 
       // 参加記録を作成（重複時はnull）
-      const participation = createParticipation({
+      const participation = await createParticipation({
         playerId: player.id,
         eventId: event.id,
         division: participant.division,

@@ -11,6 +11,7 @@ import {
   runFullCrawl,
   runUpdateCrawl,
 } from './cli.js';
+import type { CrawlSummary } from './crawler/types.js';
 import { Logger } from './utils/logger.js';
 import { printSummary } from './summary.js';
 

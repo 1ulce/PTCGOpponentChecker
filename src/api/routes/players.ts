@@ -12,7 +12,7 @@ export const playersRoutes = new Hono();
 // GET /search - プレイヤー検索
 // ============================================
 
-playersRoutes.get('/search', (c) => {
+playersRoutes.get('/search', async (c) => {
   // クエリパラメータの取得
   const name = c.req.query('name');
   const country = c.req.query('country');
@@ -37,7 +37,7 @@ playersRoutes.get('/search', (c) => {
   }
 
   // 検索実行
-  const players = searchPlayers({
+  const players = await searchPlayers({
     name: name.trim(),
     country: country || undefined,
     division: division || undefined,
@@ -54,7 +54,7 @@ playersRoutes.get('/search', (c) => {
 // GET /:id/participations - 参加記録取得
 // ============================================
 
-playersRoutes.get('/:id/participations', (c) => {
+playersRoutes.get('/:id/participations', async (c) => {
   const idStr = c.req.param('id');
   const division = c.req.query('division');
 
@@ -65,13 +65,13 @@ playersRoutes.get('/:id/participations', (c) => {
   }
 
   // プレイヤーの存在確認
-  const player = findPlayerById(id);
+  const player = await findPlayerById(id);
   if (!player) {
     return c.json({ error: 'Player not found' }, 404);
   }
 
   // 参加記録取得
-  const participations = getParticipationsWithEvents(id, division || undefined);
+  const participations = await getParticipationsWithEvents(id, division || undefined);
 
   return c.json({
     player: {
