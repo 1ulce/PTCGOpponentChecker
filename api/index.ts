@@ -61,15 +61,26 @@ const participations = sqliteTable('participations', {
 const schema = { events, players, participations };
 
 // ============================================
-// Database Setup
+// Database Setup (Lazy Initialization)
 // ============================================
 
-const client = createClient({
-  url: process.env.TURSO_DATABASE_URL!,
-  authToken: process.env.TURSO_AUTH_TOKEN,
-});
+let client: ReturnType<typeof createClient> | null = null;
+let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
-const db = drizzle(client, { schema });
+function getDb() {
+  if (!db) {
+    const url = process.env.TURSO_DATABASE_URL;
+    const authToken = process.env.TURSO_AUTH_TOKEN;
+
+    if (!url) {
+      throw new Error('TURSO_DATABASE_URL is not set');
+    }
+
+    client = createClient({ url, authToken });
+    db = drizzle(client, { schema });
+  }
+  return db;
+}
 
 // ============================================
 // App Configuration
@@ -128,7 +139,8 @@ app.get('/players/search', async (c) => {
     : nameCondition;
 
   // プレイヤーを取得
-  let results = await db
+  const database = getDb();
+  let results = await database
     .select({
       id: players.id,
       playerIdMasked: players.playerIdMasked,
@@ -141,7 +153,7 @@ app.get('/players/search', async (c) => {
 
   // Division フィルター
   if (division) {
-    const divisionResults = await db
+    const divisionResults = await database
       .selectDistinct({ playerId: participations.playerId })
       .from(participations)
       .where(eq(participations.division, division));
@@ -153,7 +165,7 @@ app.get('/players/search', async (c) => {
   // 参加回数を取得
   const playersWithCount = await Promise.all(
     results.slice(0, limit).map(async (player) => {
-      const countResult = await db
+      const countResult = await database
         .select({ count: count() })
         .from(participations)
         .where(eq(participations.playerId, player.id));
@@ -181,7 +193,8 @@ app.get('/players/:id/participations', async (c) => {
   }
 
   // プレイヤー情報を取得
-  const playerResult = await db
+  const database = getDb();
+  const playerResult = await database
     .select()
     .from(players)
     .where(eq(players.id, id))
@@ -198,7 +211,7 @@ app.get('/players/:id/participations', async (c) => {
     ? and(baseCondition, eq(participations.division, division))
     : baseCondition;
 
-  const participationResults = await db
+  const participationResults = await database
     .select({
       participationId: participations.id,
       eventName: events.name,
