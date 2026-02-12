@@ -1,0 +1,465 @@
+/* Mobile-first design: max-width 400px, centered */
+
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: #213547;
+  background-color: #ffffff;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: rgba(255, 255, 255, 0.87);
+    background-color: #1a1a1a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* App container - モバイル幅で固定 */
+.app-container {
+  width: 100%;
+  max-width: 400px;
+  padding: 16px;
+}
+
+/* Form elements */
+input,
+select,
+button {
+  font-size: 16px; /* iOS zoomを防ぐ */
+  font-family: inherit;
+}
+
+input[type='text'],
+input[type='search'],
+select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  input[type='text'],
+  input[type='search'],
+  select {
+    background-color: #2a2a2a;
+    border-color: #444;
+    color: inherit;
+  }
+}
+
+button {
+  min-height: 44px; /* タッチ操作に適したサイズ */
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  background-color: #4f46e5;
+  color: white;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #4338ca;
+}
+
+button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Typography */
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 16px 0;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin: 0 0 12px 0;
+}
+
+/* Links */
+a {
+  color: #4f46e5;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+@media (prefers-color-scheme: dark) {
+  a {
+    color: #818cf8;
+  }
+}
+
+/* Loading spinner */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error message */
+.error-message {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .error-message {
+    background-color: #450a0a;
+    border-color: #7f1d1d;
+    color: #fca5a5;
+  }
+}
+
+/* Card styles */
+.card {
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .card {
+    background-color: #2a2a2a;
+    border-color: #374151;
+  }
+}
+
+.card:hover {
+  border-color: #4f46e5;
+}
+
+/* Utility classes */
+.text-muted {
+  color: #6b7280;
+}
+
+@media (prefers-color-scheme: dark) {
+  .text-muted {
+    color: #9ca3af;
+  }
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}
+
+.mt-2 {
+  margin-top: 8px;
+}
+
+.mt-4 {
+  margin-top: 16px;
+}
+
+.mb-2 {
+  margin-bottom: 8px;
+}
+
+.mb-4 {
+  margin-bottom: 16px;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.gap-2 {
+  gap: 8px;
+}
+
+.gap-4 {
+  gap: 16px;
+}
+
+/* ============================================
+   App Layout
+   ============================================ */
+
+.app-header {
+  margin-bottom: 24px;
+}
+
+.app-header h1 {
+  margin-bottom: 4px;
+}
+
+.app-footer {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  .app-footer {
+    border-color: #374151;
+  }
+}
+
+/* ============================================
+   Search Form
+   ============================================ */
+
+.search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+@media (prefers-color-scheme: dark) {
+  .form-group label {
+    color: #d1d5db;
+  }
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.search-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.search-button .spinner {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+  border-top-color: white;
+}
+
+/* ============================================
+   Player List
+   ============================================ */
+
+.player-list {
+  margin-top: 24px;
+}
+
+.player-card {
+  width: 100%;
+  text-align: left;
+  background-color: #f9fafb;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.player-card:hover {
+  background-color: #f3f4f6;
+}
+
+@media (prefers-color-scheme: dark) {
+  .player-card {
+    background-color: #2a2a2a;
+  }
+
+  .player-card:hover {
+    background-color: #333;
+  }
+}
+
+.player-card.selected {
+  border-color: #4f46e5;
+  background-color: #eef2ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .player-card.selected {
+    background-color: #312e81;
+  }
+}
+
+.player-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.player-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.empty-message {
+  padding: 24px;
+  text-align: center;
+  color: #6b7280;
+}
+
+@media (prefers-color-scheme: dark) {
+  .empty-message {
+    color: #9ca3af;
+  }
+}
+
+/* ============================================
+   Participation List
+   ============================================ */
+
+.participation-list {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  .participation-list {
+    border-color: #374151;
+  }
+}
+
+.player-detail-meta {
+  display: flex;
+  gap: 4px;
+}
+
+.participation-card {
+  cursor: default;
+}
+
+.participation-card:hover {
+  border-color: #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  .participation-card:hover {
+    border-color: #374151;
+  }
+}
+
+.participation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.event-name {
+  font-weight: 600;
+  flex: 1;
+  padding-right: 8px;
+}
+
+.standing {
+  font-weight: 700;
+  color: #4f46e5;
+  font-size: 1.1rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .standing {
+    color: #818cf8;
+  }
+}
+
+.participation-meta {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.deck-link a {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background-color: #eef2ff;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+  .deck-link a {
+    background-color: #312e81;
+  }
+}
+
+.deck-link a:hover {
+  text-decoration: none;
+  background-color: #e0e7ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .deck-link a:hover {
+    background-color: #3730a3;
+  }
+}
