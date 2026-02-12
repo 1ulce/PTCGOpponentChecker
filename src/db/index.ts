@@ -44,8 +44,9 @@ export async function createDatabase(): Promise<LibSQLDatabase<typeof schema>> {
  * スキーマを直接SQLで初期化
  */
 async function initializeSchema(client: Client): Promise<void> {
-  await client.executeMultiple(`
-    CREATE TABLE IF NOT EXISTS events (
+  // Tursoではbatchを使って複数のSQL文を実行
+  await client.batch([
+    `CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       event_id TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
@@ -54,9 +55,8 @@ async function initializeSchema(client: Client): Promise<void> {
       city TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS players (
+    )`,
+    `CREATE TABLE IF NOT EXISTS players (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       player_id_masked TEXT NOT NULL,
       first_name TEXT NOT NULL,
@@ -65,11 +65,9 @@ async function initializeSchema(client: Client): Promise<void> {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       UNIQUE(player_id_masked, first_name, last_name, country)
-    );
-
-    CREATE INDEX IF NOT EXISTS players_name_idx ON players(first_name, last_name);
-
-    CREATE TABLE IF NOT EXISTS participations (
+    )`,
+    `CREATE INDEX IF NOT EXISTS players_name_idx ON players(first_name, last_name)`,
+    `CREATE TABLE IF NOT EXISTS participations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       player_id INTEGER NOT NULL REFERENCES players(id),
       event_id INTEGER NOT NULL REFERENCES events(id),
@@ -79,10 +77,9 @@ async function initializeSchema(client: Client): Promise<void> {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       UNIQUE(player_id, event_id)
-    );
-
-    CREATE INDEX IF NOT EXISTS participations_player_idx ON participations(player_id);
-  `);
+    )`,
+    `CREATE INDEX IF NOT EXISTS participations_player_idx ON participations(player_id)`,
+  ], 'write');
 }
 
 /**
