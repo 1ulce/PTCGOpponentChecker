@@ -15,6 +15,10 @@ type ResponseLike = {
   };
 };
 
+function isValidCountry(country: string): boolean {
+  return /^[A-Z]{2}$/.test(country);
+}
+
 export default async function handler(req: RequestLike, res: ResponseLike): Promise<void> {
   setCorsHeaders(res);
 
@@ -91,8 +95,10 @@ export default async function handler(req: RequestLike, res: ResponseLike): Prom
       results = results.filter((p) => playerIds.includes(p.id));
     }
 
+    const sanitizedResults = results.filter((player) => isValidCountry(player.country));
+
     const playersWithCount = await Promise.all(
-      results.slice(0, limit).map(async (player) => {
+      sanitizedResults.slice(0, limit).map(async (player) => {
         const countResult = await database
           .select({ count: count() })
           .from(participations)

@@ -21,6 +21,7 @@ export const ROSTER_URL_BASE = 'https://rk9.gg/roster';
 
 /** テーブル行のセレクタ */
 const TABLE_ROWS_SELECTOR = 'table tbody tr';
+const TABLE_SELECTOR = 'table';
 
 /** DataTables長さセレクタ */
 const DATATABLES_LENGTH_SELECTOR = '.dataTables_length select';
@@ -54,11 +55,13 @@ export function buildRosterUrl(eventId: string): string {
  * @returns 有効ならtrue
  */
 export function isValidParticipant(participant: ParsedParticipant): boolean {
+  const isCountryCode = /^[A-Z]{2}$/.test(participant.country);
+
   return (
     participant.playerIdMasked !== '' &&
     participant.firstName !== '' &&
     participant.lastName !== '' &&
-    participant.country !== ''
+    isCountryCode
   );
 }
 
@@ -73,27 +76,56 @@ export function isValidParticipant(participant: ParsedParticipant): boolean {
  * @returns パース済み参加者情報の配列
  */
 export async function parseParticipantsFromPage(page: Page): Promise<ParsedParticipant[]> {
-  const participants = await page.$$eval(TABLE_ROWS_SELECTOR, (rows: Element[]) => {
+  const participants = await page.$$eval(TABLE_SELECTOR, (tables: Element[]) => {
+    const table = tables[0] as HTMLTableElement | undefined;
+    if (!table) return [];
+
+    const normalizeHeader = (text: string): string =>
+      text.toLowerCase().replace(/\s+/g, ' ').trim();
+
+    const headers = Array.from(table.querySelectorAll('thead tr th'))
+      .map((th) => normalizeHeader(th.textContent || ''));
+
+    const indexOf = (candidates: string[]): number =>
+      headers.findIndex((h) => candidates.includes(h));
+
+    const column = {
+      playerIdMasked: indexOf(['player id']),
+      firstName: indexOf(['first name']),
+      lastName: indexOf(['last name']),
+      country: indexOf(['country']),
+      division: indexOf(['division']),
+      deckList: indexOf(['deck list']),
+      standing: indexOf(['standing']),
+    };
+
+    const rows = Array.from(table.querySelectorAll('tbody tr'));
+
+    const getCellText = (cells: HTMLTableCellElement[], index: number): string =>
+      index >= 0 ? (cells[index]?.textContent?.trim() || '') : '';
+
+    const getCellLink = (cells: HTMLTableCellElement[], index: number): string | null =>
+      index >= 0 ? (cells[index]?.querySelector('a')?.getAttribute('href') || null) : null;
+
     return rows.map((row) => {
       const cells = Array.from(row.querySelectorAll('td')) as HTMLTableCellElement[];
 
-      // 基本フィールド（必須）
-      const playerIdMasked = cells[0]?.textContent?.trim() || '';
-      const firstName = cells[1]?.textContent?.trim() || '';
-      const lastName = cells[2]?.textContent?.trim() || '';
-      const country = cells[3]?.textContent?.trim() || '';
+      const playerIdMasked = getCellText(cells, column.playerIdMasked);
+      const firstName = getCellText(cells, column.firstName);
+      const lastName = getCellText(cells, column.lastName);
 
-      // Division（オプション）
-      const divisionText = cells[4]?.textContent?.trim();
-      const division = divisionText && divisionText !== '' ? divisionText : null;
+      // 古い大会では Country 列が存在しないため、その場合は空文字で無効扱いにする
+      const countryRaw = getCellText(cells, column.country).toUpperCase();
+      const country = /^[A-Z]{2}$/.test(countryRaw) ? countryRaw : '';
 
-      // Deck List URL（オプション - &nbsp;の場合はnull）
-      const deckListUrl = cells[5]?.querySelector('a')?.getAttribute('href') || null;
+      const divisionText = getCellText(cells, column.division);
+      const division = divisionText !== '' ? divisionText : null;
 
-      // Standing（オプション - 空や"-"の場合はnull）
-      const standingText = cells[6]?.textContent?.trim() || '';
+      const deckListUrl = getCellLink(cells, column.deckList);
+
+      const standingText = getCellText(cells, column.standing);
       const standing =
-        standingText && standingText !== '-' && standingText !== ''
+        standingText !== '' && standingText !== '-'
           ? parseInt(standingText, 10) || null
           : null;
 

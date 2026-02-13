@@ -16,6 +16,24 @@ type ResponseLike = {
   };
 };
 
+function buildEventName(eventName: string | null, eventDate: string | null, eventCity: string | null): string {
+  const trimmed = (eventName ?? '').trim();
+  if (trimmed !== '') {
+    return trimmed;
+  }
+
+  if (eventDate && eventCity) {
+    return `${eventDate} (${eventCity})`;
+  }
+  if (eventDate) {
+    return eventDate;
+  }
+  if (eventCity) {
+    return eventCity;
+  }
+  return 'Unknown Tournament';
+}
+
 function getPlayerId(req: RequestLike): number | null {
   const fromQuery = firstQueryValue(req.query?.id);
   if (fromQuery) {
@@ -89,6 +107,7 @@ export default async function handler(req: RequestLike, res: ResponseLike): Prom
 
     const participationList = participationResults.map((r) => ({
       ...r,
+      eventName: buildEventName(r.eventName, r.eventDate, r.eventCity),
       playerIdMasked: player.playerIdMasked,
       country: player.country,
     }));

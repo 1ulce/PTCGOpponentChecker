@@ -73,7 +73,11 @@ export async function parseEventsFromPage(page: Page): Promise<ParsedEvent[]> {
 
         return {
           eventId: match[1],
-          name: cells[2]?.querySelector('a')?.textContent?.trim() || '',
+          name: (
+            cells[2]?.querySelector('a')?.textContent?.trim() ||
+            cells[2]?.textContent?.trim() ||
+            ''
+          ).replace(/\s+/g, ' ').trim(),
           date: cells[0]?.textContent?.trim() || null,
           city: cells[3]?.textContent?.trim() || null,
         };

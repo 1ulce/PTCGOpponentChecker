@@ -54,6 +54,27 @@ function db() {
   return database;
 }
 
+function isValidCountry(country: string): boolean {
+  return /^[A-Z]{2}$/.test(country);
+}
+
+function buildEventName(eventName: string, eventDate: string | null, eventCity: string | null): string {
+  const trimmed = eventName.trim();
+  if (trimmed !== '') {
+    return trimmed;
+  }
+  if (eventDate && eventCity) {
+    return `${eventDate} (${eventCity})`;
+  }
+  if (eventDate) {
+    return eventDate;
+  }
+  if (eventCity) {
+    return eventCity;
+  }
+  return 'Unknown Tournament';
+}
+
 /** プレイヤーの参加回数を取得 */
 async function getParticipationCount(playerId: number): Promise<number> {
   const result = await db()
@@ -145,9 +166,11 @@ export async function searchPlayers(options: SearchPlayersOptions): Promise<Play
     .where(conditions);
 
   // Divisionフィルターを適用して、limit適用、参加回数を付加
+  const filteredByCountry = results.filter((p) => isValidCountry(p.country));
+
   const filtered = playerIdsWithDivision
-    ? results.filter((p) => playerIdsWithDivision!.includes(p.id))
-    : results;
+    ? filteredByCountry.filter((p) => playerIdsWithDivision!.includes(p.id))
+    : filteredByCountry;
 
   const limited = filtered.slice(0, effectiveLimit);
 
@@ -209,6 +232,7 @@ export async function getParticipationsWithEvents(
   // プレイヤー情報を付加
   return results.map((r) => ({
     ...r,
+    eventName: buildEventName(r.eventName, r.eventDate, r.eventCity),
     playerIdMasked: player.playerIdMasked,
     country: player.country,
   }));
